@@ -1,66 +1,25 @@
-
-const fetch = require('node-fetch');
+// --- SPECIAL DEBUGGING CODE ---
+// This will not call Google. It only checks if the API key is available.
 
 exports.handler = async (event) => {
-  
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
-
-  
-  const { contents } = JSON.parse(event.body);
-
-  
+  // Get the secret API key from the environment variables
   const apiKey = process.env.GOOGLE_API_KEY;
 
-  if (!apiKey) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'API key is not set on the server.' }),
-    };
+  let message = '';
+
+  // Check if the key was found or not
+  if (apiKey && apiKey.length > 5) {
+    // For security, we only show the first 4 and last 4 characters.
+    const partialKey = `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`;
+    message = `Success! The serverless function found the API key. It starts with "${partialKey}".`;
+  } else {
+    message = "Error: The serverless function could NOT find the GOOGLE_API_KEY. Please double-check the variable name and that you re-deployed the site.";
   }
 
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ contents }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Google API Error:', errorData);
-      return {
-        statusCode: response.status,
-        body: JSON.stringify({ error: errorData.error.message }),
-      };
-    }
-
-    const result = await response.json();
-
-    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!text) {
-         return {
-            statusCode: 500,
-            body: JSON.stringify({ error: 'Failed to extract text from Google API response.' }),
-        };
-    }
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ text }),
-    };
-    
-  } catch (error) {
-    console.error('Serverless Function Error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'An internal server error occurred.' }),
-    };
-  }
+  // Return the message to the front-end app
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ text: message }),
+  };
 };
+
