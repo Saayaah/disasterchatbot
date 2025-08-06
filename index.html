@@ -40,7 +40,6 @@
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
         }
         
-        /* Message pop-in animation */
         @keyframes popIn {
             from {
                 opacity: 0;
@@ -58,7 +57,6 @@
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-slate-200 flex flex-col h-screen antialiased">
 
-    <!-- Header -->
     <header class="sticky top-0 bg-white/80 backdrop-blur-xl z-10 border-b border-slate-200/80">
         <div class="max-w-4xl mx-auto px-4 py-3">
             <div class="flex items-center space-x-4">
@@ -75,10 +73,8 @@
         </div>
     </header>
 
-    <!-- Main Chat Container -->
     <div class="flex-1 flex items-center justify-center p-4">
         <main class="flex flex-col h-full max-h-[750px] w-full max-w-4xl bg-white/60 backdrop-blur-lg rounded-2xl shadow-2xl shadow-slate-300/60 overflow-hidden">
-            <!-- Chat Window -->
             <div id="chat-window" class="flex-1 space-y-6 overflow-y-auto p-4 md:p-6">
                 <div class="flex items-start space-x-3 ai-message message-pop-in">
                     <div class="p-2 bg-slate-200 rounded-full text-slate-600 shadow-inner">
@@ -94,7 +90,6 @@
                 </div>
             </div>
 
-            <!-- Typing Indicator -->
             <div id="typing-indicator" class="hidden flex items-center space-x-3 p-4 md:p-6">
                 <div class="p-2 bg-slate-200 rounded-full text-slate-600 shadow-inner">
                     <i class="fas fa-robot"></i>
@@ -108,7 +103,6 @@
                 </div>
             </div>
 
-            <!-- Input Area -->
             <div class="p-4 md:p-6 bg-white/80 backdrop-blur-xl border-t border-slate-200/80">
                 <div class="flex items-center bg-slate-100 border border-slate-300 rounded-xl shadow-sm">
                     <input type="text" id="user-input" placeholder="Type your message here..." class="flex-1 p-3 bg-transparent border-none focus:ring-0 text-slate-800 placeholder-slate-500">
@@ -212,53 +206,32 @@
         }
 
         async function getAIResponseWithBackoff() {
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            // The API call now points to our secure Vercel serverless function
+            const apiUrl = `/api/getAIResponse`;
             
             const payload = {
                 contents: conversationHistory,
             };
 
-            let delay = 1000;
-            for (let i = 0; i < 5; i++) {
-                try {
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
 
-                    if (!response.ok) {
-                        if (response.status >= 500) {
-                            throw new Error(`Server error: ${response.status}`);
-                        }
-                        const errorData = await response.json();
-                        console.error("API Error:", errorData);
-                        return `An error occurred: ${errorData.error.message}`;
-                    }
-
-                    const result = await response.json();
-
-                    if (result.candidates && result.candidates.length > 0 &&
-                        result.candidates[0].content && result.candidates[0].content.parts &&
-                        result.candidates[0].content.parts.length > 0) {
-                        return result.candidates[0].content.parts[0].text;
-                    } else {
-                        const finishReason = result.candidates?.[0]?.finishReason;
-                        if (finishReason === 'SAFETY') {
-                            return "I cannot respond to this topic. Let's focus on disaster safety.";
-                        }
-                        return "I received an unusual response. Could you please rephrase your question?";
-                    }
-                } catch (error) {
-                    console.log(`Attempt ${i + 1} failed. Retrying in ${delay}ms...`);
-                    if (i < 4) {
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2;
-                    } else {
-                        throw error;
-                    }
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error("Serverless Function Error:", errorData);
+                    return `An error occurred: ${errorData.error || 'Failed to get response from server.'}`;
                 }
+
+                const result = await response.json();
+                return result.text;
+
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                return "There was an error connecting to the server. Please check your connection.";
             }
         }
 
